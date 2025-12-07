@@ -375,7 +375,12 @@ def position_optimization(positions, esp):
             row = rows - 1 - row
 
         # Calculate the LED number
-        led_number = row * columns + column
+        if row % 2 == 0:
+            # Even rows - normal left to right
+            led_number = row * columns + column
+        else:
+            # Odd rows - right to left
+            led_number = row * columns + (columns - 1 - column)
         # Append the last segment
         segments.append(led_number)
 
