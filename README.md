@@ -1,8 +1,19 @@
 # Spotlight Storage - The easy way to find your parts
 ![Spotlight-stor](https://github.com/user-attachments/assets/65a8ce23-b271-433b-a8d6-596360a2be69)
 
+## Over deze fork
 
+Dit is een fork van [FireMarshmellow/Spotlight_Storage](https://github.com/FireMarshmellow/Spotlight_Storage). De reden voor deze fork is dat het officiële Docker image op Docker Hub al meer dan een jaar niet meer bijgewerkt is, waardoor recente bugfixes en verbeteringen niet beschikbaar waren.
 
+In deze fork wordt het Docker image automatisch gebouwd en gepubliceerd via GitHub Actions, zodat het altijd up-to-date is met de laatste commits.
+
+### Belangrijke bugfix: slangenpatroon LED-matrix
+
+Een van de belangrijkste fixes die ontbrak in het officiële Docker image is de correcte berekening van LED-posities in een matrix ([commit 4fe8fda](https://github.com/FireMarshmellow/Spotlight_Storage/commit/4fe8fdafdd452f706ff4811a20a8fa84917163fc)).
+
+LED-strips worden fysiek bedraad in een slangenpatroon: van links naar rechts op even rijen, en van rechts naar links op oneven rijen. De oude code gebruikte dezelfde formule voor elke rij, waardoor de LEDs op oneven rijen in spiegelbeeld werden aangestuurd. Dit is nu gecorrigeerd.
+
+---
 
 ## Spotlight Storage is from [Mellow Labs](https://github.com/FireMarshmellow/M.I.M.O.S.A)
 On this repo you get a ready to install on windows docker container for the MIMOSA storage system. 
@@ -56,29 +67,44 @@ The easiest way to install Spotlight Storage is to use Docker Compose.
 Below are the steps to get started.
 Spotlight Storage requires Docker Compose version 2.x or higher.
 
-### Step 1: Download the required files
+### Step 1: Create a docker-compose.yml
 
-Create a new directory to hold the `docker-compose.yml` file.
-
-```bash
-mkdir Spotlight_Storage
-cd Spotlight_Storage
+```yaml
+services:
+  spotlight-storage:
+    container_name: SpotlightStorage
+    image: ghcr.io/worlockm/spotlight_storage:latest
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./images:/app/images
+      - ./logs:/app/logs
+      - ./translations:/app/static/translations
+    environment:
+      - TRANSLATIONS_DIR=/app/static/translations
 ```
-
-Download the [docker-compose.yml](https://raw.githubusercontent.com/FireMarshmellow/Spotlight_Storage/main/docker-compose.yml) file.
-
-```bash
-wget -O docker-compose.yml https://raw.githubusercontent.com/FireMarshmellow/Spotlight_Storage/main/docker-compose.yml
-```
-
-or download the files manually from the repository.
 
 ### Step 2: Start the application
 
-From the directory where the `docker-compose.yml` file is located, run the following command:
-
 ```bash
 docker compose up -d
+```
+
+## Installation with docker run
+
+```bash
+docker run -d \
+  --name SpotlightStorage \
+  --restart always \
+  -p 5000:5000 \
+  -v ./data:/app/data \
+  -v ./images:/app/images \
+  -v ./logs:/app/logs \
+  -v ./translations:/app/static/translations \
+  -e TRANSLATIONS_DIR=/app/static/translations \
+  ghcr.io/worlockm/spotlight_storage:latest
 ```
 
 
