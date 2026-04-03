@@ -39,4 +39,4 @@ jobs:
             linux/arm/v6
           push: true
           provenance: false
-          tags: ghcr.io/${{ github.repository_owner }}/spotlight_storage:latest
+          tags: ghcr.io/${{ github.repository_owner | lower }}/spotlight_storage:latest
