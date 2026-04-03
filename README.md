@@ -1,17 +1,17 @@
 # Spotlight Storage - The easy way to find your parts
 ![Spotlight-stor](https://github.com/user-attachments/assets/65a8ce23-b271-433b-a8d6-596360a2be69)
 
-## Over deze fork
+## About this fork
 
-Dit is een fork van [FireMarshmellow/Spotlight_Storage](https://github.com/FireMarshmellow/Spotlight_Storage). De reden voor deze fork is dat het officiële Docker image op Docker Hub al meer dan een jaar niet meer bijgewerkt is, waardoor recente bugfixes en verbeteringen niet beschikbaar waren.
+This is a fork of [FireMarshmellow/Spotlight_Storage](https://github.com/FireMarshmellow/Spotlight_Storage). The reason for this fork is that the official Docker image on Docker Hub had not been updated for over a year, meaning recent bugfixes and improvements were not available.
 
-In deze fork wordt het Docker image automatisch gebouwd en gepubliceerd via GitHub Actions, zodat het altijd up-to-date is met de laatste commits.
+In this fork the Docker image is automatically built and published via GitHub Actions, keeping it up-to-date with the latest commits.
 
-### Belangrijke bugfix: slangenpatroon LED-matrix
+### Important bugfix: LED matrix snake pattern
 
-Een van de belangrijkste fixes die ontbrak in het officiële Docker image is de correcte berekening van LED-posities in een matrix ([commit 4fe8fda](https://github.com/FireMarshmellow/Spotlight_Storage/commit/4fe8fdafdd452f706ff4811a20a8fa84917163fc)).
+One of the key fixes missing from the official Docker image is the correct calculation of LED positions in a matrix ([commit 4fe8fda](https://github.com/FireMarshmellow/Spotlight_Storage/commit/4fe8fdafdd452f706ff4811a20a8fa84917163fc)).
 
-LED-strips worden fysiek bedraad in een slangenpatroon: van links naar rechts op even rijen, en van rechts naar links op oneven rijen. De oude code gebruikte dezelfde formule voor elke rij, waardoor de LEDs op oneven rijen in spiegelbeeld werden aangestuurd. Dit is nu gecorrigeerd.
+LED strips are physically wired in a serpentine (snake) pattern: left to right on even rows, and right to left on odd rows. The old code used the same formula for every row, causing LEDs on odd rows to be addressed in reverse. This has been fixed.
 
 ---
 
