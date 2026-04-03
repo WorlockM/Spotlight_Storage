@@ -542,8 +542,9 @@ document.getElementById("search").addEventListener("input", function (e){
     const items = Array.from(itemsContainer.children);
 
     Array.from(items).forEach((item) => {
-        const itemName = item.dataset["name"];
-        if (itemName.toLowerCase().indexOf(searchText) !== -1) {
+        const itemName = item.dataset["name"].toLowerCase();
+        const itemTags = (item.dataset["tags"] || "").toLowerCase();
+        if (itemName.indexOf(searchText) !== -1 || itemTags.indexOf(searchText) !== -1) {
             item.style.display = "flex";
         } else {
             item.style.display = "none";
