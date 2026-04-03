@@ -7,11 +7,11 @@ This is a fork of [FireMarshmellow/Spotlight_Storage](https://github.com/FireMar
 
 In this fork the Docker image is automatically built and published via GitHub Actions, keeping it up-to-date with the latest commits.
 
-### Important bugfix: LED matrix snake pattern
+### Important bugfix: LED matrix serpentine pattern
 
 One of the key fixes missing from the official Docker image is the correct calculation of LED positions in a matrix ([commit 4fe8fda](https://github.com/FireMarshmellow/Spotlight_Storage/commit/4fe8fdafdd452f706ff4811a20a8fa84917163fc)).
 
-LED strips are physically wired in a serpentine (snake) pattern: left to right on even rows, and right to left on odd rows. The old code used the same formula for every row, causing LEDs on odd rows to be addressed in reverse. This has been fixed.
+LED strips are physically wired in a serpentine pattern: left to right on even rows, and right to left on odd rows. The old code used the same formula for every row, causing LEDs on odd rows to be addressed in reverse. This has been fixed.
 
 ---
 
