@@ -15,6 +15,7 @@ def create_combined_db():
 
     conn_combined = sqlite3.connect(COMBINED_DATABASE)
     conn_combined.row_factory = sqlite3.Row
+    conn_combined.execute("PRAGMA foreign_keys = ON")
 
     # Create items table in the combined database
     conn_combined.execute('''
@@ -53,6 +54,25 @@ def create_combined_db():
                 lightMode TEXT DEFAULT 'light',
                 colors TEXT DEFAULT '[#00ff00, #00ff00]',
                 language TEXT DEFAULT 'en'
+            )
+        ''')
+
+    # Create builds table
+    conn_combined.execute('''
+            CREATE TABLE IF NOT EXISTS builds (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL
+            )
+        ''')
+
+    # Create build_items table
+    conn_combined.execute('''
+            CREATE TABLE IF NOT EXISTS build_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                build_id INTEGER NOT NULL,
+                item_id INTEGER NOT NULL,
+                quantity_needed INTEGER NOT NULL,
+                FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE CASCADE
             )
         ''')
 
@@ -362,6 +382,96 @@ def get_all_tags():
         unique_tags_with_count = [{'tag': tag, 'count': count} for tag, count in tag_counts.items()]
         unique_tags_with_count.sort(key=lambda x: x['count'], reverse=True)
         return unique_tags_with_count
+    finally:
+        conn.close()
+
+
+def read_builds():
+    conn = create_combined_db()
+    builds = conn.execute('SELECT * FROM builds').fetchall()
+    conn.close()
+    return [dict(b) for b in builds]
+
+
+def write_build(name):
+    conn = create_combined_db()
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO builds (name) VALUES (?)', [name])
+    last_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return last_id
+
+
+def update_build_name(build_id, name):
+    conn = create_combined_db()
+    try:
+        conn.execute('UPDATE builds SET name = ? WHERE id = ?', [name, build_id])
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def delete_build(build_id):
+    conn = create_combined_db()
+    conn.execute('DELETE FROM builds WHERE id = ?', [build_id])
+    conn.commit()
+    conn.close()
+
+
+def get_build_items(build_id):
+    conn = create_combined_db()
+    rows = conn.execute(
+        '''SELECT bi.id, bi.item_id, bi.quantity_needed,
+                  i.name, i.quantity, i.image
+           FROM build_items bi
+           JOIN items i ON bi.item_id = i.id
+           WHERE bi.build_id = ?''',
+        [build_id]
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def set_build_items(build_id, items):
+    conn = create_combined_db()
+    try:
+        conn.execute('DELETE FROM build_items WHERE build_id = ?', [build_id])
+        for item in items:
+            conn.execute(
+                'INSERT INTO build_items (build_id, item_id, quantity_needed) VALUES (?, ?, ?)',
+                [build_id, item['item_id'], item['quantity_needed']]
+            )
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def execute_build(build_id):
+    conn = create_combined_db()
+    try:
+        rows = conn.execute(
+            'SELECT bi.item_id, bi.quantity_needed, i.quantity, i.name '
+            'FROM build_items bi JOIN items i ON bi.item_id = i.id '
+            'WHERE bi.build_id = ?', [build_id]
+        ).fetchall()
+
+        warnings = []
+        for row in rows:
+            if row['quantity'] < row['quantity_needed']:
+                warnings.append({'name': row['name'], 'have': row['quantity'], 'need': row['quantity_needed']})
+            new_qty = max(0, row['quantity'] - row['quantity_needed'])
+            conn.execute('UPDATE items SET quantity = ? WHERE id = ?', [new_qty, row['item_id']])
+
+        conn.commit()
+        return warnings
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

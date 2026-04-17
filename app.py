@@ -553,6 +553,46 @@ def turn_led_party():
         return jsonify()
 
 
+@app.route('/api/builds', methods=['GET', 'POST'])
+def builds():
+    if request.method == 'GET':
+        return jsonify(db.read_builds()), 200
+    elif request.method == 'POST':
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Name required'}), 400
+        build_id = db.write_build(data['name'])
+        if data.get('items'):
+            db.set_build_items(build_id, data['items'])
+        return jsonify({'id': build_id, 'name': data['name']}), 201
+
+
+@app.route('/api/builds/<int:build_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_build(build_id):
+    if request.method == 'GET':
+        build_items = db.get_build_items(build_id)
+        return jsonify({'id': build_id, 'items': build_items}), 200
+    elif request.method == 'PUT':
+        data = request.get_json()
+        if data.get('name'):
+            db.update_build_name(build_id, data['name'])
+        if 'items' in data:
+            db.set_build_items(build_id, data['items'])
+        return jsonify({'success': True})
+    elif request.method == 'DELETE':
+        db.delete_build(build_id)
+        return jsonify({'success': True})
+
+
+@app.route('/api/builds/<int:build_id>/execute', methods=['POST'])
+def execute_build(build_id):
+    try:
+        warnings = db.execute_build(build_id)
+        return jsonify({'success': True, 'warnings': warnings}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/translations', methods=['GET'])
 def get_languages():
     # Define the directory containing the translation files, relative to the location of app.py
