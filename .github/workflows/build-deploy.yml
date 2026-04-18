@@ -32,6 +32,13 @@ jobs:
       - name: Set lowercase owner
         run: echo "OWNER=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.OWNER }}/spotlight_storage
+          tags: type=raw,value=latest
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -44,4 +51,5 @@ jobs:
             linux/arm/v6
           push: true
           provenance: false
-          tags: ghcr.io/${{ env.OWNER }}/spotlight_storage:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
