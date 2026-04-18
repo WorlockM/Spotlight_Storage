@@ -37,7 +37,7 @@ async function addItem(event) {
     const name = document.getElementById("item_name").value;
     const link = document.getElementById("item_url").value || "";
     const image = document.getElementById("item_image").value.replace(window.location.href, "");
-    let position = localStorage.getItem('led_positions');
+    let position = localStorage.getItem('led_positions') || '[]';
     let quantity = document.getElementById("item_quantity").value;
     const tags = localStorage.getItem('item_tags');
     const selectedEspOption = selectEspDropdown.options[selectEspDropdown.selectedIndex];
@@ -199,7 +199,7 @@ function createItem(item) {
     col.dataset.quantity = parseInt(item.quantity, 10);  // Store as numbers
     col.dataset.ip = item.ip;
     if (!Array.isArray(item.position)) {
-        item.position = item.position.replace('[', '').replace(']', '');
+        item.position = (item.position || '').replace('[', '').replace(']', '');
         item.position = item.position.split(',').map(Number).filter(num => !isNaN(num));
     }
     col.dataset.position = item.position;
@@ -586,7 +586,7 @@ const handleEmptyFields = (formType) => {
         const itemName = document.getElementById('item_name').value;
         const itemUrl = document.getElementById('item_url').value;
         const itemQuantity = document.getElementById('item_quantity').value;
-        let position = localStorage.getItem('led_positions');
+        let position = localStorage.getItem('led_positions') || '[]';
 
         if (itemName.trim() === '') {
             emptyFields.push('Item Name');
@@ -597,10 +597,6 @@ const handleEmptyFields = (formType) => {
         if (itemQuantity.trim() === '') {
             emptyFields.push('Item Quantity');
         }
-        if (position === "[]") {
-            emptyFields.push("LED Positions");
-        }
-
         alertId = 'item-error-alert';
     }
 
