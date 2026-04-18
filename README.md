@@ -36,6 +36,7 @@ The videos are not up to date and the content in them do not match the current S
 
 ## Features
 - inventory management
+- **builds / recipes**: create named builds with a list of parts and required quantities, then execute with one click to deduct all parts from stock simultaneously
 - search
 - locate items
 - sort items in groups
