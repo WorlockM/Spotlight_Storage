@@ -14,7 +14,7 @@ document.getElementById('open-map-btn').addEventListener('click', openMapModal);
 
 function openMapModal() {
     if (!ESPs || ESPs.length === 0) {
-        alert('Geen ESP apparaten geconfigureerd.');
+        alert('No ESP devices configured.');
         return;
     }
 
@@ -40,7 +40,7 @@ function openMapModal() {
 }
 
 function showEspPicker() {
-    document.getElementById('map-modal-title').textContent = 'Kies een opslaglocatie';
+    document.getElementById('map-modal-title').textContent = 'Select a storage location';
     document.getElementById('map-esp-picker').innerHTML =
         ESPs.map(e =>
             `<button class="btn btn-outline-secondary me-2 mb-2" onclick="showMapForEsp(ESPs.find(x=>x.id==${e.id}))">${escapeHtml(e.name)}</button>`
@@ -53,7 +53,7 @@ function showEspPicker() {
 
 function showMapForEsp(esp) {
     currentMapEsp = esp;
-    document.getElementById('map-modal-title').textContent = `Kaart \u2013 ${esp.name}`;
+    document.getElementById('map-modal-title').textContent = `Map \u2013 ${esp.name}`;
     document.getElementById('map-esp-picker').classList.add('d-none');
     document.getElementById('map-canvas-container').classList.remove('d-none');
     document.getElementById('map-side-panel').classList.remove('d-none');
@@ -73,7 +73,7 @@ function showMapForEsp(esp) {
 function resetMapPanel() {
     document.getElementById('map-items-heading').textContent = '';
     document.getElementById('map-items-list').innerHTML =
-        '<p class="text-muted small">Klik op een LED-positie om te zien welke onderdelen hier staan.</p>';
+        '<p class="text-muted small">Click an LED position to see which items are stored there.</p>';
 }
 
 function drawMapCanvas(esp) {
@@ -183,10 +183,10 @@ function handleMapClick(event, esp, boxSize, lw, startX, startY, serpDir) {
 }
 
 function renderMapItems(ledNum, items) {
-    document.getElementById('map-items-heading').textContent = `Positie ${ledNum}`;
+    document.getElementById('map-items-heading').textContent = `Position ${ledNum}`;
     const container = document.getElementById('map-items-list');
     if (items.length === 0) {
-        container.innerHTML = '<p class="text-muted small mt-1">Geen onderdelen op deze positie.</p>';
+        container.innerHTML = '<p class="text-muted small mt-1">No items at this position.</p>';
         return;
     }
     container.innerHTML = items.map(item => `
@@ -196,7 +196,7 @@ function renderMapItems(ledNum, items) {
                 : '<div style="width:44px;height:44px;flex-shrink:0;" class="me-2 bg-secondary rounded opacity-25"></div>'}
             <div class="overflow-hidden">
                 <div class="fw-semibold small text-truncate">${escapeHtml(item.name)}</div>
-                <div class="text-muted small">Voorraad: ${item.quantity}</div>
+                <div class="text-muted small">Stock: ${item.quantity}</div>
             </div>
         </div>
     `).join('');
