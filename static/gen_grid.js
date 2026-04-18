@@ -370,7 +370,7 @@ function redrawGrid(rows, columns, mode, startX, startY, serpentineDirection) {
                 ctx.arc(circleCenterX, circleCenterY, indicatorCircleRadius, 0, Math.PI * 2);
                 ctx.fillStyle = '#dc3545'; // Change color for end point
             } else if (isOccupied && !isClicked) {
-                ctx.arc(circleCenterX, circleCenterY, indicatorCircleRadius, 0, Math.PI * 2);
+                ctx.arc(circleCenterX, circleCenterY, Math.min(boxSize, boxSize) / 11, 0, Math.PI * 2);
                 ctx.fillStyle = '#fd7e14'; // Orange: position occupied by another item
             } else {
                 ctx.arc(circleCenterX, circleCenterY, circleRadius, 0, Math.PI * 2);
