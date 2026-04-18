@@ -112,6 +112,18 @@ function removeLocalStorage(){
     localStorage.removeItem('item_tags');
     localStorage.removeItem('edit_image_path');
 }
+function updateOccupiedCells(espIp) {
+    occupiedCells = [];
+    if (!fetchedItems) return;
+    fetchedItems.forEach(item => {
+        if (item.ip !== espIp) return;
+        if (isEditingItem && item.id === editingItemId) return;
+        if (Array.isArray(item.position)) {
+            occupiedCells = occupiedCells.concat(item.position);
+        }
+    });
+}
+
 function populateEspDropdown() {
     let index = 0;
     selectEspDropdown.innerHTML = "";
@@ -152,9 +164,16 @@ function populateEspDropdown() {
         let startX = document.getElementById('item_esp_select').options[index].getAttribute("data-esp-start-x");
         let startY = document.getElementById('item_esp_select').options[index].getAttribute("data-esp-start-y");
         let serpentineDirection = document.getElementById('item_esp_select').options[index].getAttribute("data-esp-serpentine");
+        const espIp = document.getElementById('item_esp_select').options[index].getAttribute("data-esp-ip");
+        updateOccupiedCells(espIp);
         drawGrid("item", rows, columns, startX, startY, serpentineDirection);
     }).catch((error) => console.error(error));
 }
+
+document.getElementById('item-modal').addEventListener('show.bs.modal', function () {
+    document.getElementById("item-error-alert").classList.add("d-none");
+    document.getElementById("item-error-list").innerHTML = "";
+});
 
 document.getElementById('item-modal').addEventListener('shown.bs.modal', function () {
     let inputField = document.getElementById('item_name');
@@ -169,7 +188,9 @@ document.getElementById('item_esp_select').addEventListener('change', function (
     let startX = selectEspDropdown.options[selectEspDropdown.selectedIndex].getAttribute("data-esp-start-x");
     let startY = selectEspDropdown.options[selectEspDropdown.selectedIndex].getAttribute("data-esp-start-y");
     let serpentineDirection = selectEspDropdown.options[selectEspDropdown.selectedIndex].getAttribute("data-esp-serpentine");
+    const espIp = selectEspDropdown.options[selectEspDropdown.selectedIndex].getAttribute("data-esp-ip");
     clearAll();
+    updateOccupiedCells(espIp);
     drawGrid("item", rows, columns, startX, startY, serpentineDirection);
 });
 
@@ -496,6 +517,8 @@ function resetModal() {
     document.getElementById("item_quantity").value = "";
     document.getElementById("item_image_upload").value = "";
     document.getElementById("item_tags").value = "";
+    document.getElementById("item-error-alert").classList.add("d-none");
+    document.getElementById("item-error-list").innerHTML = "";
     removeLocalStorage();
     clearAll();
     const new_item_modal = document.querySelector('#item-modal');

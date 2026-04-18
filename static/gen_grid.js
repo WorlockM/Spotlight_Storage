@@ -1,5 +1,6 @@
 let clickedCells = [];
-let selectedCells = []
+let selectedCells = [];
+let occupiedCells = [];
 let isEventListened = false;
 let canvas;
 function drawGrid(mode, rows, columns, startX, startY, serpentineDirection) {
@@ -249,9 +250,7 @@ function drawGrid(mode, rows, columns, startX, startY, serpentineDirection) {
 
             isEventListened = true;
         }
-        if (isEditingItem || isCopyingItem) {
-            redrawGrid(rows, columns, "item", startX, startY, serpentineDirection);
-        }
+        redrawGrid(rows, columns, "item", startX, startY, serpentineDirection);
     }
 
 }
@@ -351,6 +350,7 @@ function redrawGrid(rows, columns, mode, startX, startY, serpentineDirection) {
         for (let j = 0; j < columns; j++) {
             let cellNumber = calculateLedNumber(i, j, startX, startY, serpentineDirection, rows, columns);
             let isClicked = clickedCells.includes(cellNumber);
+            let isOccupied = occupiedCells.includes(cellNumber);
             // Check if the current cell is the start or end point
             let isStartPoint = cellNumber === 1
             let isEndPoint = cellNumber === rows*columns ;
@@ -369,6 +369,9 @@ function redrawGrid(rows, columns, mode, startX, startY, serpentineDirection) {
             } else if (isEndPoint && !isClicked) {
                 ctx.arc(circleCenterX, circleCenterY, indicatorCircleRadius, 0, Math.PI * 2);
                 ctx.fillStyle = '#dc3545'; // Change color for end point
+            } else if (isOccupied && !isClicked) {
+                ctx.arc(circleCenterX, circleCenterY, indicatorCircleRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#fd7e14'; // Orange: position occupied by another item
             } else {
                 ctx.arc(circleCenterX, circleCenterY, circleRadius, 0, Math.PI * 2);
                 ctx.fillStyle = isClicked ? '#003ef8' : '#ffc107';
