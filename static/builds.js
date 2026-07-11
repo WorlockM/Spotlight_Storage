@@ -184,13 +184,7 @@ function deleteBuild(buildId, buildName) {
         .then(() => openBuildsModal());
 }
 
-function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+// escapeHtml is defined in script.js
 
 // Event wiring
 document.getElementById('open-builds-btn').addEventListener('click', openBuildsModal);

@@ -192,7 +192,7 @@ function renderMapItems(ledNum, items) {
     container.innerHTML = items.map(item => `
         <div class="d-flex align-items-center mb-2 border rounded p-2">
             ${item.image
-                ? `<img src="${item.image}" style="width:44px;height:44px;object-fit:cover;flex-shrink:0;" class="rounded me-2">`
+                ? `<img src="${safeUrl(item.image)}" style="width:44px;height:44px;object-fit:cover;flex-shrink:0;" class="rounded me-2">`
                 : '<div style="width:44px;height:44px;flex-shrink:0;" class="me-2 bg-secondary rounded opacity-25"></div>'}
             <div class="overflow-hidden">
                 <div class="fw-semibold small text-truncate">${escapeHtml(item.name)}</div>

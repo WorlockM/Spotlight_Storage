@@ -1,9 +1,9 @@
 # Importing necessary modules and packages
 import json
 import re
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, flash, Response
+import threading
+from flask import Flask, render_template, jsonify, request, send_from_directory, url_for, Response
 
-from requests import Timeout
 import db
 import requests
 import time
@@ -21,16 +21,32 @@ app.timeout = 5
 app.standbyColor = "#00ff00"
 app.locateColor = "#00ff00"
 app.config['UPLOAD_FOLDER'] = './images'
-app.previous_positions = []
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB upload limit
+app.previous_positions = {}  # last located LED positions, per ESP IP
+app.off_timers = {}  # pending turn-off timers, per ESP IP
 app.request_amount = 0
 
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
 @app.route('/proxy-image', methods=['GET'])
 def proxy_image():
-    image_url = request.args.get('url')
-    response = requests.get(image_url, stream=True)
-    return Response(response.content, content_type=response.headers['Content-Type'])
+    image_url = request.args.get('url', '')
+    if not image_url.startswith(('http://', 'https://')):
+        return jsonify({'error': 'Invalid URL'}), 400
+
+    try:
+        response = requests.get(image_url, timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"Error proxying image: {e}")
+        return jsonify({'error': 'Could not fetch image'}), 502
+
+    content_type = response.headers.get('Content-Type', '')
+    if not content_type.startswith('image/'):
+        return jsonify({'error': 'URL does not point to an image'}), 400
+
+    return Response(response.content, content_type=content_type)
 
 
 # Route to Favicon
@@ -54,19 +70,20 @@ def download_image(name):
 def upload_file():
     # check if the post request has the file part
     if 'file' not in request.files:
-        flash('No file part')
-        return
+        return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     # If the user does not select a file, the browser submits an
     # empty file without a filename.
     if file.filename == '':
-        flash('No selected file')
-        return
-    if file:
-        filename = secure_filename(file.filename)
+        return jsonify({'error': 'No selected file'}), 400
 
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return url_for('download_image', name=filename)
+    filename = secure_filename(file.filename)
+    extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if not filename or extension not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({'error': 'File type not allowed'}), 400
+
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return url_for('download_image', name=filename)
 
 
 @app.route('/api/tags', methods=['GET', 'POST'])
@@ -187,6 +204,8 @@ def items():
         return jsonify(items)
     elif request.method == 'POST':
         item = request.get_json()
+        if not item or not str(item.get('name', '')).strip():
+            return jsonify({'error': 'Name required'}), 400
         id = db.write_item(item)
         item['id'] = id
         return jsonify(item)
@@ -196,11 +215,11 @@ def items():
 @app.route('/api/items/<id>', methods=['GET', 'PUT', 'DELETE', 'POST'])
 def item(id):
     item = db.get_item(id)
+    if item is None:
+        return jsonify({'error': 'Item not found'}), 404
+
     if request.method == 'GET':
-        if item:
-            return jsonify(item)
-        else:
-            return jsonify({'error': 'Item not found'}), 404
+        return jsonify(item)
 
     elif request.method == 'PUT':
         if request.headers.get('Update-Quantity') == 'true':
@@ -209,7 +228,7 @@ def item(id):
             db.update_item_image(id, request.get_json())
         else:
             db.update_item(id, request.get_json())
-        return jsonify(dict(item))
+        return jsonify(db.get_item(id))
 
     elif request.method == 'DELETE':
         db.delete_item(id)
@@ -242,17 +261,14 @@ def send_request(target_ip, data, timeout=2.0):
         else:
             # Handle other status codes (e.g., 404, 500, etc.) as needed
             print(f"Request failed with status code {response.status_code}")
-    except ConnectionError as e:
-        # Handle connection errors
-        print(f"Connection error: {e}")
-    except Timeout as e:
-        # Handle timeout errors
-        print(f"Timeout error: {e}")
+    except requests.RequestException as e:
+        # Covers connection errors, timeouts and other request failures
+        print(f"Request to {target_ip} failed: {e}")
 
 
 def get_total_leds(ip):
     try:
-        response = requests.get(f"http://{ip}/json/info")
+        response = requests.get(f"http://{ip}/json/info", timeout=2)
         response.raise_for_status()
         info = response.json()
         return info['leds']['count']
@@ -261,9 +277,21 @@ def get_total_leds(ip):
         return 1000  # Default value if the request fails
 
 
+def cancel_off_timer(ip=None):
+    # Cancel the pending turn-off timer for one ESP, or for all ESPs
+    ips = [ip] if ip else list(app.off_timers.keys())
+    for key in ips:
+        timer = app.off_timers.pop(key, None)
+        if timer:
+            timer.cancel()
+
+
 def set_leds(led_indices, color, off_color, ip, testing=False):
     # Get the total number of LEDs from the WLED API
     total_leds = get_total_leds(ip)
+
+    # A new locate action supersedes any pending turn-off for this ESP
+    cancel_off_timer(ip)
 
     # Clear existing segments if they exist
     if app.delSegments:
@@ -279,11 +307,15 @@ def set_leds(led_indices, color, off_color, ip, testing=False):
         send_request(ip, payload)
         time.sleep(0.3)
 
-    # Initialize payload for turning off LEDs (if needed)
-    off_payload = {
-        "on": True,
-        "seg": {"i": []}
-    }
+    def build_off_payload():
+        # Payload that resets all LEDs to the standby color
+        payload = {
+            "on": True,
+            "seg": {"i": []}
+        }
+        for i in range(total_leds):
+            payload["seg"]["i"].extend([i, off_color[1:]])
+        return payload
 
     # Convert the LED indices from a string to a list of integers if necessary
     if isinstance(led_indices, str):
@@ -292,7 +324,8 @@ def set_leds(led_indices, color, off_color, ip, testing=False):
         led_indices_new = list(map(int, led_indices))
 
     # Check if the new positions are different from the previous ones
-    if app.previous_positions != led_indices_new:
+    toggled_off = False
+    if app.previous_positions.get(ip) != led_indices_new:
         # Initialize payload for turning on LEDs with the desired color
         on_payload = {
             "on": True,
@@ -307,27 +340,28 @@ def set_leds(led_indices, color, off_color, ip, testing=False):
         send_request(ip, on_payload)
 
         # Update the previous positions to the current ones
-        app.previous_positions = led_indices_new
+        app.previous_positions[ip] = led_indices_new
     else:
         # If the positions are the same, turn off all LEDs
-        for i in range(total_leds):
-            off_payload["seg"]["i"].extend([i, off_color[1:]])
-        send_request(ip, off_payload)
-        app.previous_positions = []  # Reset previous positions
-        app.timeout = 0  # Reset timeout
+        send_request(ip, build_off_payload())
+        app.previous_positions.pop(ip, None)
+        toggled_off = True
 
-    # Handle timeout and turn off LEDs after delay if needed
-    if app.timeout > 0 and not testing:
-        time.sleep(app.timeout)
-        for i in range(total_leds):
-            off_payload["seg"]["i"].extend([i, off_color[1:]])
-        send_request(ip, off_payload)
-        app.previous_positions = []  # Reset previous positions
-    elif testing:
+    # Schedule turning the LEDs off after the timeout, without blocking the request
+    if testing:
         time.sleep(app.timeout + 3)  # Ensure a minimum delay during testing
+    elif app.timeout > 0 and not toggled_off:
+        def turn_off():
+            send_request(ip, build_off_payload())
+            app.previous_positions.pop(ip, None)
+            app.off_timers.pop(ip, None)
 
-    # Update global delSegments to include the off_payload segment
-    app.delSegments = off_payload
+        timer = threading.Timer(app.timeout, turn_off)
+        timer.daemon = True
+        app.off_timers[ip] = timer
+        timer.start()
+
+    app.delSegments = True
 
 
 def light(positions, ip, esp, quantity=1, testing=False):
@@ -425,14 +459,15 @@ def hex_to_rgb(hex_color):
 @app.route('/led/on', methods=['GET'])
 def turn_led_on():
     set_global_settings()
-    app.previous_positions = []  # Reset previous positions
+    cancel_off_timer()
+    app.previous_positions = {}  # Reset previous positions
     if request.method == 'GET':
         ips = get_unique_ips_from_database()
         for ip in ips:
             total_leds = get_total_leds(ip)
             on_data = {
                 "on": True,
-                "bri": app.brightness,
+                "bri": round(255 * app.brightness),
                 "transition": 5,
                 "mainseg": 0,
                 "seg": [
@@ -489,7 +524,8 @@ def turn_led_on():
 @app.route('/led/off', methods=['GET'])
 def turn_led_off():
     ips = get_unique_ips_from_database()
-    app.previous_positions = []  # Reset previous positions
+    cancel_off_timer()
+    app.previous_positions = {}  # Reset previous positions
     for ip in ips:
         total_leds = get_total_leds(ip)
         on_data = {
@@ -525,7 +561,8 @@ def turn_led_off():
 # Route to turn the LED to Party
 @app.route('/led/party', methods=['GET'])
 def turn_led_party():
-    app.previous_positions = []  # Reset previous positions
+    cancel_off_timer()
+    app.previous_positions = {}  # Reset previous positions
     set_global_settings()
     if request.method == 'GET':
         ips = get_unique_ips_from_database()

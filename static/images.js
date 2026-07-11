@@ -15,10 +15,14 @@ async function uploadImage() {
     }
     try {
         const response = await fetch('/upload', { body: formData, method: 'POST' });
+        if (!response.ok) {
+            throw new Error(`Upload failed with status ${response.status}`);
+        }
         const imageURL = await response.text();
         return new URL(window.location.href + imageURL);
     } catch (error) {
         console.error('Error uploading file:', error);
+        alert('Image upload failed. Only png, jpg, jpeg, gif and webp files are allowed.');
         return null;
     }
 }
@@ -31,6 +35,9 @@ async function processCroppedImage(croppedImageFile, item) {
 
     try {
         const response = await fetch('/upload', { body: formData, method: 'POST' });
+        if (!response.ok) {
+            throw new Error(`Upload failed with status ${response.status}`);
+        }
         const imageURL = await response.text();
         const fullImageUrl = new URL(imageURL, window.location.href).href;
         // Update the database with the new image URL

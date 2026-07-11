@@ -52,7 +52,7 @@ def create_combined_db():
                 brightness INTEGER DEFAULT 100,
                 timeout INTEGER DEFAULT 5,
                 lightMode TEXT DEFAULT 'light',
-                colors TEXT DEFAULT '[#00ff00, #00ff00]',
+                colors TEXT DEFAULT '["#00ff00", "#00ff00"]',
                 language TEXT DEFAULT 'en'
             )
         ''')
@@ -86,7 +86,7 @@ def create_combined_db():
     cursor.execute("PRAGMA table_info(settings)")
     columns = [column[1] for column in cursor.fetchall()]
     if 'colors' not in columns:
-        cursor.execute("ALTER TABLE settings ADD COLUMN colors TEXT DEFAULT '[#00ff00, #00ff00]'")
+        cursor.execute("ALTER TABLE settings ADD COLUMN colors TEXT DEFAULT '[\"#00ff00\", \"#00ff00\"]'")
         conn_combined.commit()
     if 'language' not in columns:
         cursor.execute("ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'en'")
@@ -107,8 +107,8 @@ def write_item(item):
     conn = create_combined_db()
     cursor = conn.cursor()
     cursor.execute('INSERT INTO items (name, link, image, position, quantity, ip, tags) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                   [item['name'], item['link'], item['image'], item['position'], item['quantity'], item['ip'],
-                    item['tags']])
+                   [item['name'], item.get('link', ''), item.get('image', ''), item.get('position', '[]'),
+                    item.get('quantity', 0), item.get('ip', ''), item.get('tags', '')])
     lastId = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -125,6 +125,7 @@ def update_item_image(item_id, new_image_url):
     except sqlite3.Error as e:
         conn.rollback()
         print(e)
+        raise
     finally:
         conn.close()
 
@@ -142,6 +143,7 @@ def update_item(id, data):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -157,6 +159,7 @@ def update_item_quantity(id, data):
     except sqlite3.Error as e:
         conn.rollback()
         print(e)
+        raise
     finally:
         conn.close()
 
@@ -227,7 +230,7 @@ def update_esp_settings(id, esp_settings):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
-
+        raise
     finally:
         conn.close()
 
@@ -258,6 +261,7 @@ def delete_esp_settings(id):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -335,8 +339,11 @@ def read_settings():
             settings_dict = dict(zip([column[0] for column in cursor.description], settings))
             # Deserialize the colors field if it exists
             if 'colors' in settings_dict:
-                settings_dict['colors'] = json.loads(settings_dict['colors'])
-
+                try:
+                    settings_dict['colors'] = json.loads(settings_dict['colors'])
+                except (ValueError, TypeError):
+                    # Older databases may contain an invalid default like '[#00ff00, #00ff00]'
+                    settings_dict['colors'] = ['#00ff00', '#00ff00']
             else:
                 print("No 'colors' field found in the settings.")
             return settings_dict
@@ -362,6 +369,7 @@ def update_settings(settings):
         conn.commit()
     except sqlite3.Error as e:
         print(f"SQLite error while updating settings: {e}")
+        raise
     finally:
         conn.close()
 
@@ -410,6 +418,7 @@ def update_build_name(build_id, name):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -447,6 +456,7 @@ def set_build_items(build_id, items):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
+        raise
     finally:
         conn.close()
 

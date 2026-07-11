@@ -1,5 +1,22 @@
 const selectEspDropdown = document.getElementById("item_esp_select");
 let fetchedItems = []; // Define an array to store fetched items
+
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// Only allow http(s) and relative URLs in generated HTML (blocks javascript: etc.)
+function safeUrl(url) {
+    const str = String(url ?? '').trim();
+    if (/^https?:\/\//i.test(str) || !str.includes(':')) {
+        return escapeHtml(str);
+    }
+    return '#';
+}
 let isEditingItem = false;
 let isCopyingItem = false;
 let editingItemId = null; // Track the ID of the item being edited
@@ -231,14 +248,14 @@ function createItem(item) {
     <div class="card overflow-hidden position-relative">
         <!-- Image container with tooltip -->
         <div class="overflow-hidden d-flex justify-content-center">
-            <img src="${item.image}" class="card-img-top dynamic-img" alt="${item.name}">
+            <img src="${safeUrl(item.image)}" class="card-img-top dynamic-img" alt="${escapeHtml(item.name)}">
         </div>
 
         <!-- Card body with item details and buttons -->
         <div class="card-body p-2">
             <!-- Link to the item -->
-            <a href="${item.link}" target="_blank" class="card-title-link">
-                <h5 id="link-btn-${item.id}" class="card-title" data-bs-toggle="tooltip" title="Shop for more">${item.name}</h5>
+            <a href="${safeUrl(item.link)}" target="_blank" rel="noopener" class="card-title-link">
+                <h5 id="link-btn-${item.id}" class="card-title" data-bs-toggle="tooltip" title="Shop for more">${escapeHtml(item.name)}</h5>
             </a>
 
             <!-- Buttons for locating, editing, and dropdown menu -->
